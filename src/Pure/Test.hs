@@ -75,8 +75,11 @@ module Pure.Test
   )
   where
 
+import           Pure.Data.Lifted
+import           Pure.Data.Txt (Txt,FromTxt(..),ToTxt(..))
 import           Pure.Random.PCG as PCG
 import           Pure.Random     as PCG
+import           Pure.Spacetime.Pretty
 
 import           Control.Applicative
 import           Control.Concurrent
@@ -97,23 +100,14 @@ import           System.Directory
 import           System.Exit
 import           System.IO
 
-
 import           Control.Exception
 import           Control.DeepSeq
 
 import           Data.Char
 import           Numeric
 
-import           Pure.Spacetime.Pretty
-
 import           Text.Read hiding (lift)
 import           Unsafe.Coerce
-
-#ifdef __GHCJS__
-import           Data.JSString as JSS (JSString,pack,unpack)
-import           GHCJS.Types
-import           GHCJS.Marshal.Pure
-#endif
 
 data Status = Failed | Passed !Int | Skipped | Completed
 
@@ -515,11 +509,11 @@ fork' (Test t) = do
 
 #ifdef __GHCJS__
 foreign import javascript unsafe
-  "localStorage.setItem($1,$2)" set_item_js :: JSString -> JSString -> IO ()
+  "localStorage.setItem($1,$2)" set_item_js :: Txt -> Txt -> IO ()
 foreign import javascript unsafe
-  "localStorage.getItem($1)" get_item_js :: JSString -> IO JSVal
+  "localStorage.getItem($1)" get_item_js :: Txt -> IO JSV
 foreign import javascript unsafe
-  "$r = typeof $1 === 'string'" is_string_js :: JSVal -> Bool
+  "$r = typeof $1 === 'string'" is_string_js :: JSV -> Bool
 #endif
 
 {-# INLINE store' #-}
@@ -527,7 +521,7 @@ store' :: (Show v) => String -> String -> v -> IO ()
 store' cs k v = do
   let dir = "trivial/"
 #ifdef __GHCJS__
-  set_item_js (JSS.pack (dir <> show (abs $ hash (cs <> k)))) (JSS.pack $ show v)
+  set_item_js (toTxt (dir <> show (abs $ hash (cs <> k)))) (toTxt $ show v)
 #else
   createDirectoryIfMissing True dir
   writeFile (dir <> show (abs $ hash (cs <> k))) (show v)
@@ -544,9 +538,9 @@ retrieve' :: (Read v) => String -> String -> IO (Maybe v)
 retrieve' cs k = do
   let loc = "trivial/" <> show (abs $ hash (cs <> k))
 #ifdef __GHCJS__
-  mv <- get_item_js (JSS.pack loc)
+  mv <- get_item_js (toTxt loc)
   if is_string_js mv then
-    return $ readMaybe $ JSS.unpack $ pFromJSVal mv
+    return $ readMaybe $ fromTxt $ unsafeCoerce mv
   else
     return Nothing
 #else

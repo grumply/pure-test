@@ -21,7 +21,9 @@ library
     stm,
     async,
     pure-random-pcg,
-    pure-spacetime
+    pure-spacetime,
+    pure-txt,
+    pure-lifted
 
   exposed-modules:
     Pure.Test
