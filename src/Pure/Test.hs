@@ -123,7 +123,7 @@ combineStatus (Passed n) (Passed m) = Passed (n + m)
 data Env =
   Env { seed     :: TVar PCG.Seed
       , messages :: String
-      , results  :: TBQueue (Maybe (TMVar (String, Status)))
+      , results  :: TQueue (Maybe (TMVar (String, Status)))
       , noter    :: String -> IO ()
       , allow    :: String
       }
@@ -200,13 +200,13 @@ rerun seed = rerunOnly seed []
 {-# INLINE run' #-}
 run' :: Seed -> (String -> IO ()) -> String -> Test sync a -> IO (Maybe a)
 run' seed note allow (Test t) = do
-  resultsQ <- atomically (newTBQueue 50)
+  resultsQ <- atomically newTQueue
   seedVar <- newTVarIO seed
   note $ "Randomness seed for this run is " ++ show seed ++ ""
   results <- atomically $ newTVar HM.empty
   rs <- A.async . forever $ do
     -- note, totally fine if this bombs once queue is empty
-    Just result <- atomically $ readTBQueue resultsQ
+    Just result <- atomically $ readTQueue resultsQ
     (msgs, passed) <- atomically $ takeTMVar result
     atomically $ modifyTVar results (HM.insertWith combineStatus msgs passed)
     resultsMap <- readTVarIO results
@@ -220,7 +220,7 @@ run' seed note allow (Test t) = do
   noteLine
   e <- try (runReaderT t (Env seedVar [] resultsQ note allow))
   let finish = do
-        atomically $ writeTBQueue resultsQ Nothing
+        atomically $ writeTQueue resultsQ Nothing
         _ <- A.waitCatch rs
         resultsMap <- readTVarIO results
         let
@@ -426,7 +426,7 @@ putResult passed = do
   allow <- asks (null . allow)
   r <- liftIO . atomically $ newTMVar (msgs, if allow then passed else Skipped)
   q <- asks results
-  lift . atomically $ writeTBQueue q (Just r)
+  lift . atomically $ writeTQueue q (Just r)
 
 instance MonadReader Env (Test sync) where
   ask = Test $ do
@@ -494,7 +494,7 @@ fork' :: Test Async a -> Test Async (Test Async a)
 fork' (Test t) = do
   env <- ask
   tmvar <- liftIO newEmptyTMVarIO
-  liftIO . atomically $ writeTBQueue (results env) (Just tmvar)
+  liftIO . atomically $ writeTQueue (results env) (Just tmvar)
   r <- liftIO . A.async $ runWrap env t
   waiter <- liftIO . A.async $ do
     e <- A.waitCatch r
