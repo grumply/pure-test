@@ -30,6 +30,7 @@ library
 
   exposed-modules:
     Pure.Test
+    Pure.Test.Pretty
 
   hs-source-dirs: src
 

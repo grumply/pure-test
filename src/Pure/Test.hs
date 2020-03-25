@@ -72,14 +72,16 @@ module Pure.Test
   , retrieve, retrieve'
 
   , currentScope
+  , module Pure.Test.Pretty
   )
   where
+
+import           Pure.Test.Pretty
 
 import           Pure.Data.Lifted
 import           Pure.Data.Txt (Txt,FromTxt(..),ToTxt(..))
 import           Pure.Random.PCG as PCG
 import           Pure.Random     as PCG
-import           Pure.Spacetime.Pretty
 
 import           Control.Applicative
 import           Control.Concurrent
